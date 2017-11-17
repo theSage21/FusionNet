@@ -31,6 +31,8 @@ ques_cove = tf.placeholder(shape=q_c_sh, dtype=tf.float32)
 para_nerpos = tf.placeholder(shape=p_ner_sh, dtype=tf.float32)
 para_tf = tf.placeholder(shape=p_tf_sh, dtype=tf.float32)
 para_em = tf.placeholder(shape=p_em_sh, dtype=tf.float32)
+# TODO: They use srivastava et al Dropout of 0.4 on glove and Cove
+# TODO: dropout mask is shared between shared weights
 
 # TODO: answer placeholder for training
 logging.info("Word level infusion")
@@ -171,7 +173,7 @@ logging.info("SQuAD specific construction begins")
 # TODO: This part is a little confusing
 
 logging.info("Sumarized question understanding vector")
-with tf.variable_scope("summarized_question_vector"):
+with tf.variable_scope("summarized_question"):
     w = tf.get_variable("W", shape=(final_ques_under_dim, 1),
                         dtype=tf.float32)
     uq_s = tf.unstack(final_q_und, axis=1)
@@ -187,7 +189,7 @@ with tf.variable_scope("summarized_question_vector"):
 
 logging.info("Span Start")
 with tf.variable_scope("span_start"):
-    w = tf.get_variable("W", shape=(final_ques_under_dim,
+    w = tf.get_variable("W", shape=(selfboost_rep_dim,
                                     final_ques_under_dim),
                         dtype=tf.float32)
     uc_s = tf.unstack(final_para_rep, axis=1)
@@ -204,8 +206,22 @@ with tf.variable_scope("span_end"):
     # final memory of GRU
     inp = tf.multiply(tf.expand_dims(start_prediction, axis=2),
                       final_para_rep)
-    _, states = tf.nn.dynamic_rnn(tf.contrib.nn.GRUCell(selfboost_rep_dim),
-                                  inputs=inp, dtype=tf.float32,
-                                  initial_state=summarized_question,
-                                  scope='span_start_encoding')
-    print(states)
+    sum_dim = summarized_question.get_shape().as_list()[-1]
+    out, _ = tf.nn.dynamic_rnn(tf.contrib.rnn.GRUCell(sum_dim),
+                               inputs=inp, dtype=tf.float32,
+                               initial_state=summarized_question,
+                               scope='span_end_question_encoding')
+    vq = tf.unstack(out, axis=1)[-1]
+    vq_dim = vq.get_shape().as_list()[-1]
+    w = tf.get_variable("W", shape=(selfboost_rep_dim, vq_dim),
+                        dtype=tf.float32)
+    uc_s = tf.unstack(final_para_rep, axis=1)
+    attention_weight = []
+    for i, uc in enumerate(tqdm(uc_s, desc='StartSpan')):
+        s = tf.matmul(uc, w)
+        s = tf.reduce_sum(tf.multiply(s, vq), axis=1)
+        attention_weight.append(s)
+    end_prediction = tf.nn.softmax(tf.stack(attention_weight, axis=1))
+
+logging.info("Model Creation Complete")
+logging.info("Creating optimizers")
