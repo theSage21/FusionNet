@@ -10,6 +10,7 @@ Todo
 
 - [x] Basic Model
 - [ ] Dropout
+- [ ] Masking
 - [ ] Disk caching
 - [ ] Optimizer
 - [ ] Data Preparation with Spacy
