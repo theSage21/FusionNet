@@ -7,7 +7,8 @@ from config import (batchsize, max_p_len, glove_dim,
                     nerpos_dim, tf_dim, reading_rep_dim,
                     final_ques_under_dim, sh_att_dim,
                     su_att_dim, fully_fused_para_dim,
-                    selfboost_att_dim, selfboost_rep_dim)
+                    selfboost_att_dim, selfboost_rep_dim,
+                    dropout_proba)
 
 logging.getLogger().setLevel("DEBUG")
 
@@ -31,7 +32,8 @@ ques_cove = tf.placeholder(shape=q_c_sh, dtype=tf.float32)
 para_nerpos = tf.placeholder(shape=p_ner_sh, dtype=tf.float32)
 para_tf = tf.placeholder(shape=p_tf_sh, dtype=tf.float32)
 para_em = tf.placeholder(shape=p_em_sh, dtype=tf.float32)
-# TODO: They use srivastava et al Dropout of 0.4 on glove and Cove
+# TODO: They use srivastava et al Dropout of 0.4 on everything after glove and
+# Cove
 # TODO: dropout mask is shared between shared weights
 
 # TODO: answer placeholder for training
