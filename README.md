@@ -9,6 +9,7 @@ Todo
 ----
 
 - [x] Basic Model
+- [ ] Top question word tuning
 - [ ] Dropout
 - [ ] Masking
 - [ ] Disk caching
