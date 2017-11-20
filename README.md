@@ -11,6 +11,10 @@ Todo
 - [x] Basic Model
 - [ ] Top question word tuning
 - [ ] Dropout
+    - [x] Embedding dropout
+    - [ ] LSTM dropouts
+    - [ ] Attention dropouts
+    - [ ] Linear transform dropouts
 - [ ] Masking
 - [ ] Disk caching
 - [ ] Optimizer

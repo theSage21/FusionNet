@@ -1,7 +1,7 @@
 import logging
 from tqdm import tqdm
 import tensorflow as tf
-from parts import fuse, word_fusion
+from parts import fuse, word_fusion, timedrop
 
 
 logging.getLogger().setLevel("DEBUG")
@@ -30,18 +30,18 @@ def build(*, batchsize, max_p_len, glove_dim,
         p_em_sh = (batchsize, max_p_len, 1)  # para, exact word match in q
 
         # we generate the placeholders based on the shapes defined
-        para_glove = tf.placeholder(shape=p_g_sh, dtype=tf.float32)
-        ques_glove = tf.placeholder(shape=q_g_sh, dtype=tf.float32)
-        para_cove = tf.placeholder(shape=p_c_sh, dtype=tf.float32)
-        ques_cove = tf.placeholder(shape=q_c_sh, dtype=tf.float32)
+        inp_para_glove = tf.placeholder(shape=p_g_sh, dtype=tf.float32)
+        inp_ques_glove = tf.placeholder(shape=q_g_sh, dtype=tf.float32)
+        inp_para_cove = tf.placeholder(shape=p_c_sh, dtype=tf.float32)
+        inp_ques_cove = tf.placeholder(shape=q_c_sh, dtype=tf.float32)
         para_nerpos = tf.placeholder(shape=p_ner_sh, dtype=tf.float32)
         para_tf = tf.placeholder(shape=p_tf_sh, dtype=tf.float32)
         para_em = tf.placeholder(shape=p_em_sh, dtype=tf.float32)
-        # TODO: They use srivastava et al Dropout of 0.4 on everything after
-        # glove
-        # and
-        # Cove
-        # TODO: dropout mask is shared between shared weights
+        # -------------------embeddings dropout
+        para_glove = timedrop(inp_para_glove, drop_p, 'paraGlove')
+        para_cove = timedrop(inp_para_cove, drop_p, 'paraCove')
+        ques_glove = timedrop(inp_ques_glove, drop_p, 'quesGlove')
+        ques_cove = timedrop(inp_ques_cove, drop_p, 'quesCove')
 
         # TODO: answer placeholder for training
         logging.info("Word level infusion")

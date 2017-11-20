@@ -2,6 +2,18 @@ from tqdm import tqdm
 import tensorflow as tf
 
 
+def timedrop(x, rate, scope=''):
+    "Applies dropout across timesteps"
+    scope += '_dropout'
+    with tf.variable_scope(scope):
+        x_us = tf.unstack(x, axis=1)
+        dropped = []
+        for idx, var in enumerate(x_us):
+            dropped.append(tf.nn.dropout(var, rate))
+        dropped = tf.stack(dropped, axis=1)
+    return dropped
+
+
 def fullattention(first, b, attention_dim, U, D, scope=''):
     """
     Fully aware attention based on the multiplicative attention
