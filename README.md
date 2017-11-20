@@ -12,7 +12,7 @@ Todo
 - [ ] Top question word tuning
 - [ ] Dropout
     - [x] Embedding dropout
-    - [ ] LSTM dropouts
+    - [x] LSTM dropouts
     - [ ] Attention dropouts
     - [ ] Linear transform dropouts
 - [ ] Masking

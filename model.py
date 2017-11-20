@@ -62,34 +62,38 @@ def build(*, batchsize, max_p_len, glove_dim,
         with tf.variable_scope("Reading"):
             f_read_q_low = tf.contrib.rnn.LSTMCell(reading_rep_dim//2)
             b_read_q_low = tf.contrib.rnn.LSTMCell(reading_rep_dim//2)
+            inp = timedrop(ques_w_rep, drop_p, 'question_low_inp')
             ques_low_h, _ = birnn(cell_fw=f_read_q_low, cell_bw=b_read_q_low,
-                                  inputs=ques_w_rep, dtype=tf.float32,
+                                  inputs=inp, dtype=tf.float32,
                                   scope='ques_low_under')
             ques_low_h = tf.concat(ques_low_h, axis=2)
 
             f_read_q_high = tf.contrib.rnn.LSTMCell(reading_rep_dim//2)
             b_read_q_high = tf.contrib.rnn.LSTMCell(reading_rep_dim//2)
+            inp = timedrop(ques_low_h, drop_p, 'question_high_inp')
             ques_high_h, _ = birnn(cell_fw=f_read_q_high,
                                    cell_bw=b_read_q_high,
-                                   inputs=ques_low_h,
+                                   inputs=inp,
                                    dtype=tf.float32,
                                    scope='ques_high_under')
             ques_high_h = tf.concat(ques_high_h, axis=2)
 
             f_read_p_low = tf.contrib.rnn.LSTMCell(reading_rep_dim//2)
             b_read_p_low = tf.contrib.rnn.LSTMCell(reading_rep_dim//2)
+            inp = timedrop(para_enhanced_rep, drop_p, 'para_low_inp')
             para_low_h, _ = birnn(cell_fw=f_read_p_low,
                                   cell_bw=b_read_p_low,
-                                  inputs=para_enhanced_rep,
+                                  inputs=inp,
                                   dtype=tf.float32,
                                   scope='para_low_under')
             para_low_h = tf.concat(para_low_h, axis=2)
 
             f_read_p_high = tf.contrib.rnn.LSTMCell(reading_rep_dim//2)
             b_read_p_high = tf.contrib.rnn.LSTMCell(reading_rep_dim//2)
+            inp = timedrop(para_low_h, drop_p, 'para_high_inp')
             para_high_h, _ = birnn(cell_fw=f_read_p_high,
                                    cell_bw=b_read_p_high,
-                                   inputs=para_low_h,
+                                   inputs=inp,
                                    dtype=tf.float32,
                                    scope='para_high_under')
             para_high_h = tf.concat(para_high_h, axis=2)
@@ -100,6 +104,7 @@ def build(*, batchsize, max_p_len, glove_dim,
             f_uq = tf.contrib.rnn.LSTMCell(final_ques_under_dim//2)
             b_uq = tf.contrib.rnn.LSTMCell(final_ques_under_dim//2)
             inp = tf.concat([ques_low_h, ques_high_h], axis=2)
+            inp = timedrop(inp, drop_p, 'final_q_und_inp')
             final_q_und, _ = birnn(cell_fw=f_uq,
                                    cell_bw=b_uq,
                                    inputs=inp,
@@ -128,6 +133,7 @@ def build(*, batchsize, max_p_len, glove_dim,
             inp = tf.concat([para_low_h, para_high_h,
                              para_fused_l, para_fused_h,
                              para_fused_u], axis=2)
+            inp = timedrop(inp, drop_p, 'full_fused_para_inp')
             f_vc = tf.contrib.rnn.LSTMCell(fully_fused_para_dim//2)
             b_vc = tf.contrib.rnn.LSTMCell(fully_fused_para_dim//2)
             ff_para, _ = birnn(cell_fw=f_vc, cell_bw=b_vc, inputs=inp,
@@ -148,6 +154,7 @@ def build(*, batchsize, max_p_len, glove_dim,
             f_sb = tf.contrib.rnn.LSTMCell(selfboost_rep_dim//2)
             b_sb = tf.contrib.rnn.LSTMCell(selfboost_rep_dim//2)
             inp = tf.concat([ff_para, ff_fused_para], axis=2)
+            inp = timedrop(inp, drop_p, 'self_boosting_inp')
             final_para_rep, _ = birnn(cell_fw=f_sb, cell_bw=b_sb, inputs=inp,
                                       dtype=tf.float32, scope='self_boosted')
             final_para_rep = tf.concat(final_para_rep, axis=2)
@@ -192,6 +199,7 @@ def build(*, batchsize, max_p_len, glove_dim,
             # final memory of GRU
             inp = tf.multiply(tf.expand_dims(start_prediction, axis=2),
                               final_para_rep)
+            inp = timedrop(inp, drop_p, 'span_end_ques_encode_inp')
             sum_dim = summarized_question.get_shape().as_list()[-1]
             out, _ = tf.nn.dynamic_rnn(tf.contrib.rnn.GRUCell(sum_dim),
                                        inputs=inp, dtype=tf.float32,
@@ -211,6 +219,6 @@ def build(*, batchsize, max_p_len, glove_dim,
 
         logging.info("Model Creation Complete")
         logging.info("Creating optimizers")
-    return (para_glove, ques_glove, para_cove, ques_cove,
+    return (inp_para_glove, inp_ques_glove, inp_para_cove, inp_ques_cove,
             para_nerpos, para_tf, para_em, start_prediction,
             end_prediction)
