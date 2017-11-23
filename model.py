@@ -28,12 +28,16 @@ def build(*, batchsize, max_p_len, glove_dim,
         p_ner_sh = (batchsize, max_p_len, nerpos_dim)  # para, ner + pos
         p_tf_sh = (batchsize, max_p_len, tf_dim)  # para, normalized term freq
         p_em_sh = (batchsize, max_p_len, 1)  # para, exact word match in q
+        p_mask_sh = (batchsize, )  # paragraph lengths
+        q_mask_sh = (batchsize, )  # question lengths
 
         # we generate the placeholders based on the shapes defined
         inp_para_glove = tf.placeholder(shape=p_g_sh, dtype=tf.float32)
         inp_ques_glove = tf.placeholder(shape=q_g_sh, dtype=tf.float32)
         inp_para_cove = tf.placeholder(shape=p_c_sh, dtype=tf.float32)
         inp_ques_cove = tf.placeholder(shape=q_c_sh, dtype=tf.float32)
+        inp_para_mask = tf.placeholder(shape=p_mask_sh, dtype=tf.int32)
+        inp_ques_mask = tf.placeholder(shape=q_mask_sh, dtype=tf.int32)
         para_nerpos = tf.placeholder(shape=p_ner_sh, dtype=tf.float32)
         para_tf = tf.placeholder(shape=p_tf_sh, dtype=tf.float32)
         para_em = tf.placeholder(shape=p_em_sh, dtype=tf.float32)
@@ -42,11 +46,15 @@ def build(*, batchsize, max_p_len, glove_dim,
         para_cove = timedrop(inp_para_cove, drop_p, 'paraCove')
         ques_glove = timedrop(inp_ques_glove, drop_p, 'quesGlove')
         ques_cove = timedrop(inp_ques_cove, drop_p, 'quesCove')
+        # ------------------- mask generation
+        p_mask = tf.expand_dims(tf.one_hot(inp_para_mask, max_p_len), axis=2)
+        q_mask = tf.expand_dims(tf.one_hot(inp_ques_mask, max_q_len), axis=2)
 
         # TODO: answer placeholder for training
         logging.info("Word level infusion")
         # fused_a = fuse(para_glove, ques_glove, attention_dim, 'test')
-        para_q_fused_glove = word_fusion(para_glove, ques_glove)
+        para_q_fused_glove = word_fusion(para_glove, ques_glove,
+                                         p_mask, q_mask)
         para_w_rep = tf.concat([para_glove, para_cove,
                                 para_nerpos, para_tf],
                                axis=2)

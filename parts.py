@@ -69,26 +69,29 @@ def fuse(howA, howB, attention_dim, scope='', concat=False, B=None):
     return fused_A
 
 
-def word_fusion(para_glove, q_glove):
+def word_fusion(para_glove, q_glove, p_mask, q_mask):
     "Fuses glove representations of question into para"
     dim = q_glove.get_shape().as_list()[-1]
     with tf.variable_scope("word_fusion"):
         W = tf.get_variable("W", shape=(dim, dim), dtype=tf.float32)
         p, q = tf.unstack(para_glove, axis=1), tf.unstack(q_glove, axis=1)
+        q_mask = tf.squeeze(q_mask)
+        pMsk, qMsk = tf.unstack(p_mask, axis=1), tf.unstack(q_mask, axis=1)
         fused_para = []
-        for i, pw in enumerate(tqdm(p, desc='word fusion')):
+        for i, (pw, pm) in enumerate(tqdm(zip(p, pMsk), total=len(p),
+                                          desc='word fusion')):
             attention_weights = []
             first = tf.nn.relu(tf.matmul(W, tf.transpose(pw)))
-            for j, qw in enumerate(q):
+            for j, (qw, qm) in enumerate(zip(q, qMsk)):
                 second = tf.nn.relu(tf.matmul(W, tf.transpose(qw)))
                 s = tf.reduce_sum(tf.transpose(tf.multiply(first, second)),
                                   axis=1)
-                attention_weights.append(s)
+                attention_weights.append(tf.exp(s)*qm)
             attention_weights = tf.stack(attention_weights, axis=1)
-            attention_weights = tf.nn.softmax(attention_weights)
+            attention_weights /= tf.reduce_sum(attention_weights)
             attention_weights = tf.expand_dims(attention_weights, axis=2)
             rep = tf.reduce_sum(tf.multiply(q_glove, attention_weights),
                                 axis=1)
-            fused_para.append(rep)
+            fused_para.append(rep*pm)
         fused_para = tf.stack(fused_para, axis=1)
     return fused_para
