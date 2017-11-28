@@ -73,7 +73,8 @@ def build(*, batchsize, max_p_len, glove_dim,
             inp = timedrop(ques_w_rep, drop_p, 'question_low_inp')
             ques_low_h, _ = birnn(cell_fw=f_read_q_low, cell_bw=b_read_q_low,
                                   inputs=inp, dtype=tf.float32,
-                                  scope='ques_low_under')
+                                  scope='ques_low_under',
+                                  sequence_length=inp_ques_mask)
             ques_low_h = tf.concat(ques_low_h, axis=2)
 
             f_read_q_high = tf.contrib.rnn.LSTMCell(reading_rep_dim//2)
@@ -83,7 +84,8 @@ def build(*, batchsize, max_p_len, glove_dim,
                                    cell_bw=b_read_q_high,
                                    inputs=inp,
                                    dtype=tf.float32,
-                                   scope='ques_high_under')
+                                   scope='ques_high_under',
+                                   sequence_length=inp_ques_mask)
             ques_high_h = tf.concat(ques_high_h, axis=2)
 
             f_read_p_low = tf.contrib.rnn.LSTMCell(reading_rep_dim//2)
@@ -93,7 +95,8 @@ def build(*, batchsize, max_p_len, glove_dim,
                                   cell_bw=b_read_p_low,
                                   inputs=inp,
                                   dtype=tf.float32,
-                                  scope='para_low_under')
+                                  scope='para_low_under',
+                                  sequence_length=inp_para_mask)
             para_low_h = tf.concat(para_low_h, axis=2)
 
             f_read_p_high = tf.contrib.rnn.LSTMCell(reading_rep_dim//2)
@@ -103,7 +106,8 @@ def build(*, batchsize, max_p_len, glove_dim,
                                    cell_bw=b_read_p_high,
                                    inputs=inp,
                                    dtype=tf.float32,
-                                   scope='para_high_under')
+                                   scope='para_high_under',
+                                   sequence_length=inp_ques_mask)
             para_high_h = tf.concat(para_high_h, axis=2)
 
         logging.info("Final Question Understanding")
@@ -117,7 +121,8 @@ def build(*, batchsize, max_p_len, glove_dim,
                                    cell_bw=b_uq,
                                    inputs=inp,
                                    dtype=tf.float32,
-                                   scope='final_q_und')
+                                   scope='final_q_und',
+                                   sequence_length=inp_ques_mask)
             final_q_und = tf.concat(final_q_und, axis=2)
 
         logging.info("Fusion High level")
@@ -129,13 +134,19 @@ def build(*, batchsize, max_p_len, glove_dim,
             ques_HoW = tf.concat([ques_glove, ques_cove,
                                   ques_low_h, ques_high_h],
                                  axis=2)
-            para_fused_l = fuse(para_HoW, ques_HoW, sl_att_dim,
+            para_fused_l = fuse(para_HoW, ques_HoW,
+                                p_mask, q_mask,
+                                sl_att_dim,
                                 B=ques_low_h,
                                 scope='low_level_fusion')
-            para_fused_h = fuse(para_HoW, ques_HoW, sh_att_dim,
+            para_fused_h = fuse(para_HoW, ques_HoW,
+                                p_mask, q_mask,
+                                sh_att_dim,
                                 B=ques_high_h,
                                 scope='high_level_fusion')
-            para_fused_u = fuse(para_HoW, ques_HoW, su_att_dim,
+            para_fused_u = fuse(para_HoW, ques_HoW,
+                                p_mask, q_mask,
+                                su_att_dim,
                                 B=final_q_und,
                                 scope='understanding_fusion')
             inp = tf.concat([para_low_h, para_high_h,
@@ -145,7 +156,8 @@ def build(*, batchsize, max_p_len, glove_dim,
             f_vc = tf.contrib.rnn.LSTMCell(fully_fused_para_dim//2)
             b_vc = tf.contrib.rnn.LSTMCell(fully_fused_para_dim//2)
             ff_para, _ = birnn(cell_fw=f_vc, cell_bw=b_vc, inputs=inp,
-                               dtype=tf.float32, scope='full_fused_para')
+                               dtype=tf.float32, scope='full_fused_para',
+                               sequence_length=inp_para_mask)
             ff_para = tf.concat(ff_para, axis=2)
 
         logging.info("Self boosting fusion")
@@ -156,7 +168,9 @@ def build(*, batchsize, max_p_len, glove_dim,
                                   para_fused_l, para_fused_h,
                                   para_fused_u, ff_para],
                                  axis=2)
-            ff_fused_para = fuse(para_HoW, para_HoW, selfboost_att_dim,
+            ff_fused_para = fuse(para_HoW, para_HoW,
+                                 p_mask, p_mask,
+                                 selfboost_att_dim,
                                  B=ff_para,
                                  scope='self_boosted_fusion')
             f_sb = tf.contrib.rnn.LSTMCell(selfboost_rep_dim//2)
@@ -212,7 +226,8 @@ def build(*, batchsize, max_p_len, glove_dim,
             out, _ = tf.nn.dynamic_rnn(tf.contrib.rnn.GRUCell(sum_dim),
                                        inputs=inp, dtype=tf.float32,
                                        initial_state=summarized_question,
-                                       scope='span_end_question_encoding')
+                                       scope='span_end_question_encoding',
+                                       sequence_length=inp_para_mask)
             vq = tf.unstack(out, axis=1)[-1]
             vq_dim = vq.get_shape().as_list()[-1]
             w = tf.get_variable("W", shape=(selfboost_rep_dim, vq_dim),

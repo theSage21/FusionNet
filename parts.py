@@ -28,7 +28,8 @@ def fullattention(first, b, attention_dim, U, D, scope=''):
     return s
 
 
-def fuse(howA, howB, attention_dim, scope='', concat=False, B=None):
+def fuse(howA, howB, howAmask, howBmask,
+         attention_dim, scope='', concat=False, B=None):
     """
     Fuses B into A via multiplicative attention.
     Returns the attended representation so that the user
@@ -45,6 +46,8 @@ def fuse(howA, howB, attention_dim, scope='', concat=False, B=None):
     with tf.variable_scope(scope):
         a_s = tf.unstack(howA, axis=1)
         b_s = tf.unstack(howB, axis=1)
+        hamsk = tf.unstack(howAmask, axis=1)
+        hbmsk = tf.unstack(tf.squeeze(howBmask), axis=1)
         fused_A = []
         # -----------------------------------------------------fusion variables
         U = tf.get_variable('U', shape=(attention_dim, dim),
@@ -53,17 +56,22 @@ def fuse(howA, howB, attention_dim, scope='', concat=False, B=None):
         D = tf.get_variable('D', shape=(attention_dim, attention_dim),
                             dtype=tf.float32)
         D = tf.multiply(D, I)  # restrict to diagonal
-        for i, a in enumerate(tqdm(a_s, desc='Fuse '+scope)):
+        for i, (a, am) in enumerate(zip(tqdm(a_s, desc='Fuse '+scope),
+                                        hamsk)):
             attention_weights = []
             # first half of equation
             first = tf.nn.relu(tf.matmul(U, tf.transpose(a)))
-            for j, b in enumerate(b_s):
+            for j, (b, bmask) in enumerate(zip(b_s, hbmsk)):
                 s = fullattention(first, b_s[j], attention_dim, U, D, scope)
+                s = tf.exp(s) * bmask  # If it's not in B, don't use
                 attention_weights.append(s)
             attention_weights = tf.stack(attention_weights, axis=1)
-            attention_weights = tf.nn.softmax(attention_weights)
+            total = tf.expand_dims(tf.reduce_sum(attention_weights, axis=1), axis=1)
+            attention_weights /= total
             attention_weights = tf.expand_dims(attention_weights, axis=2)
+            # Calculate representation
             rep = tf.reduce_sum(tf.multiply(B, attention_weights), axis=1)
+            rep *= am  # If it does not exist in A, don't set it
             fused_A.append(rep)
         fused_A = tf.stack(fused_A, axis=1)
     return fused_A

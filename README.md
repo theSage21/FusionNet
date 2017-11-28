@@ -15,7 +15,9 @@ Todo
     - [x] LSTM dropouts
     - [ ] Attention dropouts
     - [ ] Linear transform dropouts
-- [ ] Masking
+- [x] Masking
+    - [x] fusion masking
+    - [x] rnn masking
 - [ ] Disk caching
 - [ ] Optimizer
 - [ ] Data Preparation with Spacy
