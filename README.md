@@ -18,8 +18,9 @@ Todo
 - [x] Masking
     - [x] fusion masking
     - [x] rnn masking
+- [ ] Loss as per paper
 - [ ] Disk caching
-- [ ] Optimizer
+- [x] Optimizer
 - [ ] Data Preparation with Spacy
 - [ ] Tensorboard
 - [ ] Single model

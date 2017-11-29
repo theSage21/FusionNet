@@ -30,6 +30,8 @@ def build(*, batchsize, max_p_len, glove_dim,
         p_em_sh = (batchsize, max_p_len, 1)  # para, exact word match in q
         p_mask_sh = (batchsize, )  # paragraph lengths
         q_mask_sh = (batchsize, )  # question lengths
+        ans_st_exp = (batchsize, max_p_len)  # answer start pointer
+        ans_end_exp = (batchsize, max_p_len)  # answer end pointer
 
         # we generate the placeholders based on the shapes defined
         inp_para_glove = tf.placeholder(shape=p_g_sh, dtype=tf.float32)
@@ -41,6 +43,8 @@ def build(*, batchsize, max_p_len, glove_dim,
         para_nerpos = tf.placeholder(shape=p_ner_sh, dtype=tf.float32)
         para_tf = tf.placeholder(shape=p_tf_sh, dtype=tf.float32)
         para_em = tf.placeholder(shape=p_em_sh, dtype=tf.float32)
+        exp_ans_start = tf.placeholder(shape=ans_st_exp, dtype=tf.float32)
+        exp_ans_end = tf.placeholder(shape=ans_end_exp, dtype=tf.float32)
         # -------------------embeddings dropout
         para_glove = timedrop(inp_para_glove, drop_p, 'paraGlove')
         para_cove = timedrop(inp_para_cove, drop_p, 'paraCove')
@@ -241,7 +245,7 @@ def build(*, batchsize, max_p_len, glove_dim,
             end_prediction = tf.nn.softmax(tf.stack(attention_weight, axis=1))
 
         logging.info("Model Creation Complete")
-        logging.info("Creating optimizers")
     return (inp_para_glove, inp_ques_glove, inp_para_cove, inp_ques_cove,
             para_nerpos, para_tf, para_em, start_prediction,
-            end_prediction)
+            end_prediction, exp_ans_start, exp_ans_end,
+            inp_para_mask, inp_ques_mask)

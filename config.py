@@ -1,5 +1,6 @@
 config = dict(is_train=True,
               learning_rate_alpha=0.002,  # as in paper
+              learning_rate=0.001,
               learning_rate_beta=(0.9, 0.999),  # as in paper
               epsilon=1e-8,  # as in paper
               n_epochs=50,  # NOTE unable to find in paper
@@ -20,6 +21,7 @@ config = dict(is_train=True,
               selfboost_att_dim=10,  # clarified as 250
               selfboost_rep_dim=8,  # in paper 250
               dropout_proba=0.4,  # in paper 0.4
+              workspace_location='workspace'
               )
 
 
